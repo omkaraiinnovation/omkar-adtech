@@ -1,0 +1,10 @@
+{
+  "name": "@omkar-adtech/config",
+  "version": "1.0.0",
+  "private": true,
+  "files": [
+    "eslint.js",
+    "tailwind.js",
+    "tsconfig/"
+  ]
+}

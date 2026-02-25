@@ -1,0 +1,261 @@
+// Omkar AI Innovation — Ad-Tech Platform
+// Prisma Schema v1.0 — 9 Models
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ===== ENUMS =====
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum Platform {
+  GOOGLE
+  META
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum Objective {
+  LEAD_GEN
+  CONVERSIONS
+  AWARENESS
+  TRAFFIC
+}
+
+enum CreativeStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  DEPLOYED
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFYING
+  QUALIFIED
+  ATTENDING
+  ENROLLED
+  LOST
+}
+
+// ===== MODEL 1: User =====
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique  // Clerk user ID for auth
+  email     String   @unique
+  name      String?
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns Campaign[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ===== MODEL 2: Campaign =====
+
+model Campaign {
+  id             String         @id @default(cuid())
+  externalId     String?        // Google Campaign ID or Meta Campaign ID
+  name           String
+  platform       Platform
+  status         CampaignStatus @default(DRAFT)
+  objective      Objective
+  dailyBudget    Int            // INR paisa (1 rupee = 100 paisa)
+  lifetimeBudget Int?           // INR paisa
+  startDate      DateTime?
+  endDate        DateTime?
+  targeting      Json           // CampaignTargeting object
+  lastSyncedAt   DateTime?
+  provisional    Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  adSets            AdSet[]
+  leads             Lead[]
+  budgetAllocations BudgetAllocation[]
+
+  @@index([userId])
+  @@index([platform, status])
+  @@map("campaigns")
+}
+
+// ===== MODEL 3: AdSet =====
+
+model AdSet {
+  id          String @id @default(cuid())
+  externalId  String?
+  name        String
+  targeting   Json   // CampaignTargeting object
+  bidStrategy String // e.g., "TARGET_CPA", "MAXIMIZE_CONVERSIONS"
+  budget      Int    // INR paisa
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  creatives Creative[]
+
+  @@index([campaignId])
+  @@map("ad_sets")
+}
+
+// ===== MODEL 4: Creative =====
+
+model Creative {
+  id               String         @id @default(cuid())
+  headline         String         // Max 30 chars (Google RSA), 40 chars (Meta)
+  description      String         // Max 90 chars
+  imageUrl         String?
+  videoUrl         String?
+  thumbnailUrl     String?
+  format           String         // 'IMAGE' | 'VIDEO' | 'CAROUSEL' | 'RSA' | 'RESPONSIVE_DISPLAY'
+  generativeModel  String?        // Which AI model generated it
+  generativePrompt String?        @db.Text
+  complianceScore  Float?         // 0.0–1.0; threshold 0.85 for auto-deployment
+  status           CreativeStatus @default(DRAFT)
+  externalId       String?        // Platform ad ID after deployment
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  adSetId String
+  adSet   AdSet  @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+
+  complianceAudits ComplianceAudit[]
+
+  @@index([adSetId])
+  @@index([status])
+  @@map("creatives")
+}
+
+// ===== MODEL 5: Lead =====
+
+model Lead {
+  id        String     @id @default(cuid())
+  name      String
+  phone     String     @unique // E.164 format
+  email     String?
+  city      String?
+  source    String     // 'META' | 'GOOGLE'
+  score     Int        @default(0) // 0–100, set by Claude intent scorer
+  status    LeadStatus @default(NEW)
+  metadata  Json?      // Extra fields from lead form
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  conversation WhatsAppConversation?
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([phone])
+  @@map("leads")
+}
+
+// ===== MODEL 6: WhatsAppConversation =====
+
+model WhatsAppConversation {
+  id           String    @id @default(cuid())
+  state        String    @default("INITIAL") // WhatsAppState enum value
+  windowOpenAt DateTime? // When 24-hour messaging window opened
+  lastMsgAt    DateTime? // Last message timestamp
+  messageCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  leadId String @unique
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_conversations")
+}
+
+// ===== MODEL 7: BudgetAllocation =====
+
+model BudgetAllocation {
+  id                  String   @id @default(cuid())
+  date                DateTime @db.Date
+  platform            String   @default("GOOGLE") // 'GOOGLE' | 'META'
+  allocated           Int      @default(0) // INR paisa allocated for this day
+  previousAmount      Int?     // For audit trail
+  roas                Float    @default(0)
+  impressions         Int      @default(0)
+  clicks              Int      @default(0)
+  conversions         Int      @default(0)
+  spend               Int      @default(0) // INR paisa actual spend
+  ucbScore            Float    @default(0)
+  reallocationReason  String?  // Why MAB shifted budget
+  triggerType         String?  // 'UCB_SCHEDULED' | 'CUSUM_CHANGE_POINT' | etc.
+  createdAt           DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, date])
+  @@index([date])
+  @@map("budget_allocations")
+}
+
+// ===== MODEL 8: AgentLog =====
+
+model AgentLog {
+  id          String   @id @default(cuid())
+  agentName   String   // AgentName enum value
+  action      String   // e.g., "generate_creative_variants"
+  inputJson   Json
+  outputJson  Json?
+  status      String   // 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED'
+  ms          Int      // Execution time in milliseconds
+  errorMessage String?
+  createdAt   DateTime @default(now())
+
+  @@index([agentName])
+  @@index([status])
+  @@index([createdAt])
+  @@map("agent_logs")
+}
+
+// ===== MODEL 9: ComplianceAudit =====
+
+model ComplianceAudit {
+  id                    String   @id @default(cuid())
+  platform              String   // 'GOOGLE' | 'META' | 'BOTH'
+  compliant             Boolean
+  score                 Float    // 0.0–1.0
+  violations            String[] // Array of violation descriptions
+  suggestions           String[] // AI-generated fix recommendations
+  policyChunksReferenced String[] // pgvector matched policy section IDs
+  version               Int      @default(1)
+  createdAt             DateTime @default(now())
+
+  creativeId String
+  creative   Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@index([creativeId])
+  @@index([score])
+  @@map("compliance_audits")
+}

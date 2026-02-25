@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== BASE DARK GLASSMORPHISM SYSTEM ===== */
+@layer base {
+  * {
+    @apply border-white/8;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface-deep text-white antialiased;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(0, 180, 216, 0.03) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 60%),
+      radial-gradient(ellipse at 60% 80%, rgba(212, 160, 23, 0.02) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-neon-cyan/20 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-deep;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-raised rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neon-cyan/40;
+  }
+}
+
+/* ===== COMPONENT LAYER ===== */
+@layer components {
+  /* Glass card base */
+  .glass {
+    @apply bg-surface-mid/60 backdrop-blur-glass border border-white/8 shadow-glass;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  }
+
+  /* Neon glow variants */
+  .glow-gold {
+    @apply shadow-glow-gold;
+  }
+
+  .glow-cyan {
+    @apply shadow-glow-cyan;
+  }
+
+  /* KPI number style */
+  .kpi-value {
+    @apply text-neon-cyan font-bold tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Shimmer loading skeleton */
+  .skeleton {
+    @apply animate-shimmer bg-gradient-to-r from-surface-mid via-surface-raised to-surface-mid;
+    background-size: 200% 100%;
+  }
+
+  /* Neon text */
+  .text-glow-gold {
+    color: #D4A017;
+    text-shadow: 0 0 20px rgba(212, 160, 23, 0.5);
+  }
+
+  .text-glow-cyan {
+    color: #00B4D8;
+    text-shadow: 0 0 20px rgba(0, 180, 216, 0.5);
+  }
+
+  /* Platform badge */
+  .badge-google {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-meta {
+    @apply bg-neon-purple/20 text-neon-purple border border-neon-purple/30 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-active {
+    @apply bg-neon-green/20 text-neon-green border border-neon-green/30 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  .badge-paused {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+}
+
+/* ===== UTILITY LAYER ===== */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Chart tooltip override */
+  .recharts-tooltip-wrapper {
+    @apply !outline-none;
+  }
+
+  .recharts-default-tooltip {
+    @apply !bg-surface-mid/95 !border-white/10 !shadow-glass !backdrop-blur-glass !rounded-lg;
+  }
+}
